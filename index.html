@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Room Expense Splitter</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              900: '#064e3b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 antialiased min-h-screen pb-20">
+
+  <!-- Header -->
+  <header class="bg-brand-600 text-white shadow-lg sticky top-0 z-50">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center gap-2">
+        <i data-lucide="wallet" class="h-7 w-7 sm:h-8 sm:w-8 text-brand-100"></i>
+        <h1 class="text-lg sm:text-xl font-bold tracking-tight">FairShare <span class="font-light opacity-80">Lite</span></h1>
+      </div>
+      <div class="flex gap-2 items-center">
+        <button onclick="app.shareImage()"
+          class="text-xs bg-white text-brand-600 hover:bg-brand-50 p-2 sm:px-3 sm:py-1.5 rounded-lg transition-colors flex items-center gap-1 shadow-sm border border-brand-200 sm:border-b-2">
+          <i data-lucide="share-2" class="h-4 w-4 sm:h-3 sm:w-3"></i> <span class="hidden sm:inline font-semibold">Share</span>
+        </button>
+        <button onclick="app.exportExcel()"
+          class="text-xs bg-brand-500 hover:bg-brand-400 text-white p-2 sm:px-3 sm:py-1.5 rounded-lg transition-colors flex items-center gap-1 shadow-sm border border-brand-400">
+          <i data-lucide="download" class="h-4 w-4 sm:h-3 sm:w-3"></i> <span class="hidden sm:inline font-semibold">Export</span>
+        </button>
+        <button onclick="app.resetAll()"
+          class="text-xs bg-brand-700 hover:bg-brand-900 p-2 sm:px-3 sm:py-1.5 rounded-lg transition-colors flex items-center gap-1">
+          <i data-lucide="trash-2" class="h-4 w-4 sm:h-3 sm:w-3"></i> <span class="hidden sm:inline font-semibold">Clear</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-8 space-y-8">
+
+    <!-- DASHBOARD SUMMARY (Unified Layout) -->
+    <section id="dashboard-summary"
+      class="tab-content-home block lg:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative group hover:border-brand-200 transition-all">
+      <div
+        class="absolute right-0 top-0 p-4 -mr-4 -mt-4 bg-brand-50 w-32 h-32 rounded-full opacity-50 group-hover:scale-110 transition-transform">
+      </div>
+
+      <!-- Current Month Badge -->
+      <div class="absolute right-4 top-4 sm:right-6 sm:top-6 z-10">
+        <span
+          class="text-xs font-semibold text-brand-700 bg-brand-100 px-3 py-1.5 rounded-full border border-brand-200 shadow-sm flex items-center gap-1">
+          <i data-lucide="calendar" class="h-3 w-3 shrink-0"></i> <span id="current-month-display">Month</span>
+        </span>
+      </div>
+
+      <!-- Top Row: Headers & Total -->
+      <div class="p-6 sm:px-8 sm:py-6 border-b border-gray-100 relative z-0">
+        <div>
+          <p class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-1">Total Spent</p>
+          <p class="text-4xl sm:text-5xl font-bold text-gray-900 tracking-tight" id="display-total">₹0</p>
+        </div>
+      </div>
+
+      <!-- Bottom Row: Spending Items -->
+      <div class="p-6 sm:px-8 bg-gray-50/30">
+        <div class="flex justify-between items-center cursor-pointer sm:cursor-auto" onclick="app.toggleSpendingMobile()">
+          <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <i data-lucide="pie-chart" class="h-5 w-5 text-brand-500 shrink-0"></i>
+            <span>Individual Spending</span>
+          </h2>
+          <button class="sm:hidden p-1 -mr-1 text-gray-400 hover:text-brand-600 transition-colors focus:outline-none">
+            <i data-lucide="chevron-down" id="spending-toggle-icon" class="h-6 w-6 transition-transform"></i>
+          </button>
+        </div>
+        <div id="spending-list-wrapper" class="hidden sm:block mt-5">
+          <div id="spending-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <!-- Spending cards -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+      <!-- LEFT COLUMN: INPUTS -->
+      <div class="lg:col-span-1 space-y-8">
+
+        <!-- 1. ADD EXPENSE -->
+        <div id="section-add-expense" class="tab-content-home block lg:block bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <i data-lucide="receipt-indian-rupee" class="h-5 w-5 text-brand-500"></i> Add Expense
+          </h2>
+
+          <form onsubmit="app.addExpense(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1 ml-1">Paid By</label>
+              <select id="expense-payer" required
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all">
+                <option value="" disabled selected>Select member</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1 ml-1">For What?</label>
+              <input type="text" id="expense-desc" placeholder="e.g. Pizza, Wifi" required
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1 ml-1">Amount (₹)</label>
+              <input type="number" id="expense-amount" placeholder="0.00" min="1" step="0.01" required
+                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all font-mono">
+            </div>
+
+            <button type="submit"
+              class="w-full bg-brand-600 hover:bg-brand-700 text-white py-3 rounded-xl font-medium shadow-lg shadow-brand-200 transition-all active:scale-95 flex justify-center items-center gap-2">
+              Add Expense
+            </button>
+          </form>
+        </div>
+
+        <!-- 2. MANAGE MEMBERS -->
+        <div id="section-members" class="tab-content-members hidden lg:block bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <i data-lucide="users" class="h-5 w-5 text-brand-500"></i> Members
+          </h2>
+
+          <form onsubmit="app.addMember(event)" class="flex gap-2 mb-4">
+            <input type="text" id="member-name" placeholder="Name (e.g. Siva)"
+              class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all">
+            <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white p-2 rounded-xl transition-colors">
+              <i data-lucide="plus" class="h-5 w-5"></i>
+            </button>
+          </form>
+
+          <div id="members-list" class="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+            <!-- Member items will go here -->
+            <div class="text-sm text-gray-400 text-center py-2">No members yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: STATS & HISTORY -->
+      <div id="section-history" class="tab-content-history hidden lg:block lg:col-span-2 space-y-8">
+
+
+        <!-- SETTLEMENT PLAN (New) -->
+        <div id="settlement-plan-container"
+          class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hidden">
+          <div class="bg-brand-50/50 px-6 py-4 border-b border-gray-100">
+            <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <i data-lucide="arrow-right-circle" class="h-5 w-5 text-brand-500 shrink-0"></i>
+              <span>How to Settle Up</span>
+            </h2>
+          </div>
+          <div id="settlement-plan-list" class="divide-y divide-gray-100">
+            <!-- Plan Items -->
+          </div>
+        </div>
+
+        <!-- HISTORY -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <i data-lucide="history" class="h-5 w-5 text-brand-500"></i> History
+            </h2>
+            <span class="text-xs text-gray-500 bg-white px-2 py-1 rounded border">Recent 50</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left whitespace-nowrap">
+              <thead class="text-xs text-gray-500 uppercase bg-gray-50 border-b">
+                <tr>
+                  <th class="px-6 py-3 font-medium">Date</th>
+                  <th class="px-6 py-3 font-medium">For</th>
+                  <th class="px-6 py-3 font-medium">Who Paid</th>
+                  <th class="px-6 py-3 font-medium text-right">Amount</th>
+                  <th class="px-6 py-3 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="expense-table-body" class="divide-y divide-gray-100">
+                <!-- Data injected here -->
+              </tbody>
+            </table>
+            <div id="empty-state" class="text-center py-10 flex flex-col items-center justify-center text-gray-400">
+              <i data-lucide="receipt" class="h-12 w-12 mb-3 text-gray-300"></i>
+              <p>No expenses recorded yet.</p>
+              <p class="text-xs mt-1">Add members and start logging.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Bottom Navigation Menu (Mobile) -->
+  <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 px-6 py-2 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+    <div class="flex justify-between items-center max-w-md mx-auto">
+      <button onclick="app.switchTab('home')" id="tab-btn-home" class="flex flex-col items-center gap-1 p-2 w-16 text-brand-600 transition-colors">
+        <i data-lucide="home" class="h-6 w-6"></i>
+        <span class="text-[10px] font-semibold">Home</span>
+      </button>
+      <button onclick="app.switchTab('members')" id="tab-btn-members" class="flex flex-col items-center gap-1 p-2 w-16 text-gray-400 hover:text-brand-500 transition-colors">
+        <i data-lucide="users" class="h-6 w-6"></i>
+        <span class="text-[10px] font-semibold">Members</span>
+      </button>
+      <button onclick="app.switchTab('history')" id="tab-btn-history" class="flex flex-col items-center gap-1 p-2 w-16 text-gray-400 hover:text-brand-500 transition-colors">
+        <i data-lucide="history" class="h-6 w-6"></i>
+        <span class="text-[10px] font-semibold">History</span>
+      </button>
+    </div>
+  </nav>
+
+  <script>
+    const app = {
+      data: {
+        members: [],
+        expenses: []
+      },
+      currentTab: 'home',
+
+      switchTab(tab) {
+        if (window.innerWidth >= 1024) return; // Skip logic on desktop since all views are visible
+        this.currentTab = tab;
+
+        ['home', 'members', 'history'].forEach(t => {
+          const btn = document.getElementById(`tab-btn-${t}`);
+          if (btn) {
+            if (t === tab) {
+              btn.classList.add('text-brand-600');
+              btn.classList.remove('text-gray-400');
+            } else {
+              btn.classList.add('text-gray-400');
+              btn.classList.remove('text-brand-600');
+            }
+          }
+
+          const contents = document.querySelectorAll(`.tab-content-${t}`);
+          contents.forEach(el => {
+            if (t === tab) {
+              el.classList.remove('hidden');
+            } else {
+              el.classList.add('hidden');
+            }
+          });
+        });
+      },
+
+      toggleSpendingMobile() {
+        if (window.innerWidth >= 640) return; // Skip on screens sm and larger
+        const wrapper = document.getElementById('spending-list-wrapper');
+        const icon = document.getElementById('spending-toggle-icon');
+        wrapper.classList.toggle('hidden');
+        icon.classList.toggle('rotate-180');
+      },
+
+      init() {
+        const saved = localStorage.getItem('fairshare_data');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            // Handle mobile app rollback where members became objects {id, name, contact}
+            // If they are objects, convert back to strings for this ancient layout version.
+            if (parsed.members && parsed.members.length > 0 && typeof parsed.members[0] === 'object') {
+              parsed.members = parsed.members.map(m => m.name);
+            }
+            this.data = parsed;
+          } catch (e) {
+            console.error('Data corrupted, checking defaults');
+          }
+        }
+
+        // Setup current month display
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const d = new Date();
+        document.getElementById('current-month-display').textContent = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+
+        // Create standard lucide icons
+        lucide.createIcons();
+
+        this.render();
+      },
+
+      save() {
+        localStorage.setItem('fairshare_data', JSON.stringify(this.data));
+        this.render();
+      },
+
+      addMember(e) {
+        e.preventDefault();
+        const input = document.getElementById('member-name');
+        const name = input.value.trim();
+
+        if (name && !this.data.members.includes(name)) {
+          this.data.members.push(name);
+          input.value = '';
+          this.save();
+        } else if (this.data.members.includes(name)) {
+          alert('Member already exists!');
+        }
+      },
+
+      removeMember(name) {
+        if (confirm(`Remove ${name}? Their expenses will remain but calculations might be affected.`)) {
+          this.data.members = this.data.members.filter(m => m !== name);
+          this.save();
+        }
+      },
+
+      addExpense(e) {
+        e.preventDefault();
+        const descInput = document.getElementById('expense-desc');
+        const amountInput = document.getElementById('expense-amount');
+        const payerInput = document.getElementById('expense-payer');
+
+        const desc = descInput.value.trim();
+        const amount = parseFloat(amountInput.value);
+        const paidBy = payerInput.value;
+
+        if (desc && amount > 0 && paidBy) {
+          const date = new Date().toISOString().split('T')[0];
+
+          this.data.expenses.push({
+            id: Date.now(),
+            date,
+            desc,
+            amount,
+            paidBy
+          });
+
+          descInput.value = '';
+          amountInput.value = '';
+          this.save();
+        }
+      },
+
+      deleteExpense(id) {
+        if (confirm('Delete this expense?')) {
+          this.data.expenses = this.data.expenses.filter(e => e.id !== id);
+          this.save();
+        }
+      },
+
+      resetAll() {
+        if (confirm('Are you sure you want to clear ALL data? This cannot be undone.')) {
+          this.data = { members: [], expenses: [] };
+          this.save();
+        }
+      },
+
+      async shareImage() {
+        const dashboard = document.getElementById('dashboard-summary');
+        const settlement = document.getElementById('settlement-plan-container');
+
+        if (!dashboard) return;
+
+        let contentHtml = dashboard.outerHTML;
+        if (settlement && !settlement.classList.contains('hidden')) {
+          contentHtml += settlement.outerHTML;
+        }
+
+        const newTab = window.open();
+        newTab.document.write(`
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <title>FairShare Summary View</title>
+            <script src="https://cdn.tailwindcss.com"><\/script>
+            <script>
+              tailwind.config = {
+                theme: {
+                  extend: {
+                    colors: {
+                      brand: {
+                        50: '#ecfdf5',
+                        100: '#d1fae5',
+                        500: '#10b981',
+                        600: '#059669',
+                        700: '#047857',
+                        900: '#064e3b',
+                      }
+                    }
+                  }
+                }
+              }
+            <\/script>
+            <script src="https://unpkg.com/lucide@latest"><\/script>
+            <style>
+              @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+              body {
+                font-family: 'Inter', sans-serif;
+                background-color: #f9fafb;
+                padding: 2rem;
+                display: flex;
+                justify-content: center;
+              }
+              .container {
+                max-width: 800px;
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                gap: 2rem;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              ${contentHtml}
+            </div>
+            <script>
+              lucide.createIcons();
+            <\/script>
+          </body>
+          </html>
+        `);
+        newTab.document.close();
+      },
+
+      exportExcel() {
+        if (this.data.expenses.length === 0) {
+          alert('No expenses to export!');
+          return;
+        }
+
+        // 1. EXPENSES LIST
+        let csvContent = "\uFEFFTYPE,DATE,DESCRIPTION,WHO,AMOUNT\n";
+
+        this.data.expenses.forEach(e => {
+          const safeDesc = `"${e.desc.replace(/"/g, '""')}"`;
+          csvContent += `Expense,${e.date},${safeDesc},${e.paidBy},${e.amount}\n`;
+        });
+
+        csvContent += "\n"; // Spacer
+
+        // 2. SUMMARY STATS
+        const totalSpent = this.data.expenses.reduce((sum, e) => sum + e.amount, 0);
+        const memberCount = this.data.members.length;
+        const sharePerPerson = memberCount > 0 ? totalSpent / memberCount : 0;
+
+        csvContent += "SUMMARY,Total Spent,,," + totalSpent + "\n";
+        csvContent += "SUMMARY,Share Per Person,,," + sharePerPerson.toFixed(2) + "\n\n";
+
+        // 3. SETTLEMENT PLAN
+        csvContent += "SETTLEMENT PLAN,From,To,Amount\n";
+
+        if (memberCount > 0) {
+          const balances = {};
+          this.data.members.forEach(m => balances[m] = 0);
+
+          this.data.expenses.forEach(e => {
+            if (balances[e.paidBy] !== undefined) balances[e.paidBy] += e.amount;
+          });
+
+          this.data.members.forEach(m => {
+            balances[m] -= sharePerPerson;
+          });
+
+          const debtors = [];
+          const creditors = [];
+
+          Object.entries(balances).forEach(([name, amount]) => {
+            if (amount < -0.01) debtors.push({ name, amount });
+            if (amount > 0.01) creditors.push({ name, amount });
+          });
+
+          debtors.sort((a, b) => a.amount - b.amount); // Ascending
+          creditors.sort((a, b) => b.amount - a.amount); // Descending
+
+          let i = 0;
+          let j = 0;
+
+          while (i < debtors.length && j < creditors.length) {
+            let debtor = debtors[i];
+            let creditor = creditors[j];
+            let amount = Math.min(Math.abs(debtor.amount), creditor.amount);
+
+            if (amount > 0.5) {
+              csvContent += `Pay,${debtor.name},${creditor.name},${amount.toFixed(2)}\n`;
+            }
+
+            debtor.amount += amount;
+            creditor.amount -= amount;
+
+            if (Math.abs(debtor.amount) < 0.01) i++;
+            if (creditor.amount < 0.01) j++;
+          }
+        }
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+
+        link.setAttribute("href", url);
+        link.setAttribute("download", "fairshare_export.csv");
+        link.style.visibility = 'hidden';
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      },
+
+      formatMoney(amount) {
+        return new Intl.NumberFormat('en-IN', {
+          style: 'currency',
+          currency: 'INR',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2
+        }).format(amount);
+      },
+
+      render() {
+        // 1. Render Members List
+        const membersList = document.getElementById('members-list');
+        membersList.innerHTML = '';
+
+        this.data.members.forEach(m => {
+          const div = document.createElement('div');
+          div.className = 'flex justify-between items-center bg-gray-50 px-3 py-2 rounded-lg group';
+          div.innerHTML = `
+                        <span class="font-medium text-gray-700">${m}</span>
+                        <button onclick="app.removeMember('${m}')" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <i data-lucide="x" class="h-4 w-4"></i>
+                        </button>
+                    `;
+          membersList.appendChild(div);
+        });
+
+        // 2. Render Payer Select
+        const select = document.getElementById('expense-payer');
+        const currentVal = select.value;
+        select.innerHTML = '<option value="" disabled selected>Select member</option>';
+        this.data.members.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m;
+          select.appendChild(opt);
+        });
+        select.value = currentVal; // Preserve selection if possible
+
+        // 3. Render Expenses Table
+        const tbody = document.getElementById('expense-table-body');
+        const emptyState = document.getElementById('empty-state');
+        tbody.innerHTML = '';
+
+        if (this.data.expenses.length === 0) {
+          emptyState.classList.remove('hidden');
+        } else {
+          emptyState.classList.add('hidden');
+          this.data.expenses.forEach(exp => {
+            const tr = document.createElement('tr');
+            tr.className = 'bg-white hover:bg-gray-50 transition-colors group';
+            tr.innerHTML = `
+                            <td class="px-4 sm:px-6 py-4 text-gray-500 text-xs sm:text-sm">${exp.date}</td>
+                            <td class="px-4 sm:px-6 py-4 font-medium text-gray-900">${exp.desc}</td>
+                            <td class="px-4 sm:px-6 py-4">
+                                <span class="bg-brand-50 text-brand-700 px-2 py-1 rounded-md text-[10px] sm:text-xs font-semibold">${exp.paidBy}</span>
+                            </td>
+                            <td class="px-4 sm:px-6 py-4 text-right font-mono font-bold text-gray-800">${this.formatMoney(exp.amount)}</td>
+                            <td class="px-4 sm:px-6 py-4 text-center">
+                                <button onclick="app.deleteExpense(${exp.id})" class="text-gray-300 hover:text-red-500 transition-colors p-2">
+                                    <i data-lucide="trash" class="h-4 w-4"></i>
+                                </button>
+                            </td>
+                        `;
+            tbody.appendChild(tr);
+          });
+        }
+
+        // 4. Calculations & Settlement
+        const totalSpent = this.data.expenses.reduce((sum, e) => sum + e.amount, 0);
+        const memberCount = this.data.members.length;
+        const sharePerPerson = memberCount > 0 ? totalSpent / memberCount : 0;
+
+        document.getElementById('display-total').textContent = this.formatMoney(totalSpent);
+
+        // Calculate Balances & Spending
+        const spendingList = document.getElementById('spending-list');
+        spendingList.innerHTML = '';
+
+        if (memberCount > 0) {
+          // Initialize 0 balance
+          const balances = {};
+          const spending = {};
+          this.data.members.forEach(m => {
+            balances[m] = 0;
+            spending[m] = 0;
+          });
+
+          // Add payments (Credits)
+          this.data.expenses.forEach(e => {
+            if (balances[e.paidBy] !== undefined) {
+              balances[e.paidBy] += e.amount;
+              spending[e.paidBy] += e.amount;
+            }
+          });
+
+          // Render Spending
+          Object.entries(spending)
+            .sort(([, a], [, b]) => b - a) // Sort by highest spending first
+            .forEach(([name, spent]) => {
+              const card = document.createElement('div');
+              card.className = 'flex items-center justify-between p-3 rounded-xl border bg-gray-50 border-gray-100';
+
+              card.innerHTML = `
+                                    <div class="flex items-center gap-2 overflow-hidden pr-2">
+                                        <div class="h-8 w-8 rounded-full bg-brand-100 flex-shrink-0 flex items-center justify-center text-brand-700 font-bold text-xs">${name.charAt(0)}</div>
+                                        <div class="min-w-0">
+                                            <p class="font-bold text-gray-800 truncate" title="${name}">${name}</p>
+                                            <p class="text-xs text-gray-500">spent</p>
+                                        </div>
+                                    </div>
+                                    <span class="font-bold text-brand-600 font-mono flex-shrink-0">${this.formatMoney(spent)}</span>
+                                `;
+              spendingList.appendChild(card);
+            });
+
+          // Subtract Share (Debits) for settlement plan
+          this.data.members.forEach(m => {
+            balances[m] -= sharePerPerson;
+          });
+
+          // 5. Calculate Settlement Plan (Who pays whom)
+          const debtors = [];
+          const creditors = [];
+
+          Object.entries(balances).forEach(([name, amount]) => {
+            if (amount < -0.01) debtors.push({ name, amount });
+            if (amount > 0.01) creditors.push({ name, amount });
+          });
+
+          debtors.sort((a, b) => a.amount - b.amount); // Ascending (most negative first)
+          creditors.sort((a, b) => b.amount - a.amount); // Descending (most positive first)
+
+          const planList = document.getElementById('settlement-plan-list');
+          const planContainer = document.getElementById('settlement-plan-container');
+
+          planList.innerHTML = '';
+
+          if (debtors.length > 0 && creditors.length > 0) {
+            planContainer.classList.remove('hidden');
+
+            let i = 0;
+            let j = 0;
+
+            while (i < debtors.length && j < creditors.length) {
+              let debtor = debtors[i];
+              let creditor = creditors[j];
+
+              // Amount to settle is min of abs(debtor) and creditor
+              let amount = Math.min(Math.abs(debtor.amount), creditor.amount);
+
+              if (amount > 0.5) { // Filter out tiny dust amounts
+                const row = document.createElement('div');
+                row.className = 'px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors';
+                row.innerHTML = `
+                          <div class="flex items-center gap-2 sm:gap-3 overflow-hidden">
+                              <div class="flex items-center gap-1 sm:gap-2 min-w-0">
+                                  <span class="font-bold text-gray-800 truncate max-w-[80px] sm:max-w-none" title="${debtor.name}">${debtor.name}</span>
+                                  <span class="text-xs text-gray-400">pays</span>
+                              </div>
+                              <i data-lucide="arrow-right" class="h-3 w-3 sm:h-4 sm:w-4 text-brand-400 shrink-0"></i>
+                              <div class="flex items-center gap-2 min-w-0">
+                                  <span class="font-bold text-gray-800 truncate max-w-[80px] sm:max-w-none" title="${creditor.name}">${creditor.name}</span>
+                              </div>
+                          </div>
+                          <span class="font-bold text-brand-600 font-mono text-base sm:text-lg flex-shrink-0 pl-2">${this.formatMoney(amount)}</span>
+                      `;
+                planList.appendChild(row);
+              }
+
+              // Update remaining amounts
+              debtor.amount += amount;
+              creditor.amount -= amount;
+
+              if (Math.abs(debtor.amount) < 0.01) i++;
+              if (creditor.amount < 0.01) j++;
+            }
+          } else {
+            planContainer.classList.add('hidden');
+          }
+
+        } else {
+          spendingList.innerHTML = '<div class="col-span-full text-center text-gray-400 py-4">Add members to see spending.</div>';
+          document.getElementById('settlement-plan-container').classList.add('hidden');
+        }
+
+        // Re-init icons
+        lucide.createIcons();
+      }
+    };
+
+    // Initialize App
+    app.init();
+  </script>
+</body>
+
+</html>
