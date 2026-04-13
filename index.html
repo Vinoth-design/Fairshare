@@ -379,7 +379,22 @@
 
         if (!dashboard) return;
 
-        let contentHtml = dashboard.outerHTML;
+        const clone = dashboard.cloneNode(true);
+        
+        // Force the spending list to be visible in the shared snapshot
+        const wrapper = clone.querySelector('#spending-list-wrapper');
+        if (wrapper) {
+          wrapper.classList.remove('hidden');
+          wrapper.classList.add('block');
+        }
+        
+        // Remove the collapse toggle icon button from the final snapshot
+        const chevronBtn = clone.querySelector('button');
+        if (chevronBtn) {
+           chevronBtn.remove();
+        }
+
+        let contentHtml = clone.outerHTML;
         if (settlement && !settlement.classList.contains('hidden')) {
           contentHtml += settlement.outerHTML;
         }
